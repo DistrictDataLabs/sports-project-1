@@ -33,6 +33,14 @@ def parseStat(statText):
     else:
         return int(statText)
 
+# parses player numbers from the table, handles the "-"s, which are registered as -1
+def parseNum(numText):
+    numText = numText.strip()
+    if numText is "-":
+        return -1
+    else:
+        return int(numText)
+
 # parse substitution information, returns () if no sub,  
 def parseSub(subText):
     if not subText:
@@ -44,7 +52,8 @@ def parseSub(subText):
 # os.path.join
 dropboxPath = "C:\Users\Matt\Documents\Dropbox\Sports Project\CrawlData"
 
-for page_id in range(395707, 100000, -1):
+# started from 395707 and counted down
+for page_id in range(394910, 394909, -1):
 
     print "********************"
     
@@ -117,7 +126,7 @@ for page_id in range(395707, 100000, -1):
         # parse number
         startTag = "<td>"
         endTag = "</td>"
-        awayStarters[-1][statAbbrevs[1]] = int(getContents(awayLineup, startTag, endTag, start=startIndex))
+        awayStarters[-1][statAbbrevs[1]] = parseNum(getContents(awayLineup, startTag, endTag, start=startIndex))
         startIndex = awayLineup.find(endTag, awayLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
         # parse player name + id (espn.fc.co.uk ID)
@@ -152,7 +161,7 @@ for page_id in range(395707, 100000, -1):
         # parse number
         startTag = "<td>"
         endTag = "</td>"
-        homeStarters[-1][statAbbrevs[1]] = int(getContents(homeLineup, startTag, endTag, start=startIndex))
+        homeStarters[-1][statAbbrevs[1]] = parseNum(getContents(homeLineup, startTag, endTag, start=startIndex))
         startIndex = homeLineup.find(endTag, homeLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
         # parse player info
@@ -187,7 +196,7 @@ for page_id in range(395707, 100000, -1):
         # parse number
         startTag = "<td>"
         endTag = "</td>"
-        awaySubs[-1][statAbbrevs[1]] = int(getContents(awaySubLineup, startTag, endTag, start=startIndex))
+        awaySubs[-1][statAbbrevs[1]] = parseNum(getContents(awaySubLineup, startTag, endTag, start=startIndex))
         startIndex = awaySubLineup.find(endTag, awaySubLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
         # parse player name and ID
@@ -225,7 +234,7 @@ for page_id in range(395707, 100000, -1):
         # parse number
         startTag = "<td>"
         endTag = "</td>"
-        homeSubs[-1][statAbbrevs[1]] = int(getContents(homeSubLineup, startTag, endTag, start=startIndex))
+        homeSubs[-1][statAbbrevs[1]] = parseNum(getContents(homeSubLineup, startTag, endTag, start=startIndex))
         startIndex = homeSubLineup.find(endTag, homeSubLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
         # parse player information

@@ -19,18 +19,21 @@ def getContents(htmlText, startTag, endTag, start=0, end=-1, brkTag=[]):
         else:
             return ""
 
+# parses a string containing a player (a little complicated) into a (ID, name) tuple 
 def parsePlayer(linkText): # link text of the form <a href = ...>Player Name</a>
     playerName = getContents(linkText, ">", "</a")
     playerID = int(getContents(linkText, '<a href="/player/', "/"))
     return (playerID, playerName)
     
+# parses stats from the table, handles the "-"s, which are registered as zeros
 def parseStat(statText):
     statText = statText.strip()
     if statText is "-":
         return 0
     else:
         return int(statText)
-        
+
+# parse substitution information, returns () if no sub,  
 def parseSub(subText):
     if not subText:
         return ()
@@ -41,7 +44,7 @@ def parseSub(subText):
 # os.path.join
 dropboxPath = "C:\Users\Matt\Documents\Dropbox\Sports Project\CrawlData"
 
-for page_id in [000004, 200007, 300001]:
+for page_id in range(395707, 100000, -1):
 
     print "********************"
     
@@ -123,7 +126,10 @@ for page_id in [000004, 200007, 300001]:
         awayStarters[-1][statAbbrevs[2]] = parsePlayer(getContents(awayLineup, startTag, endTag, start=startIndex))
         startIndex = awayLineup.find(endTag, awayLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
-        # 
+        # this player did not sub in        
+        awayStarters[-1]["Sub"] = ()
+        
+        # parse the scoring stats
         for statLoop in range(3, len(statAbbrevs)):
             startTag = "<td>"        
             endTag = "</td>"
@@ -137,21 +143,28 @@ for page_id in [000004, 200007, 300001]:
         homeStarters.append(dict())
         homeStarters[-1]["Started"] = True
         
+        # parse position        
         startTag = "<p>"    
         endTag = "</p>"
         homeStarters[-1][statAbbrevs[0]] = getContents(homeLineup, startTag, endTag, start=startIndex)
         startIndex = homeLineup.find(endTag, homeLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
+        # parse number
         startTag = "<td>"
         endTag = "</td>"
         homeStarters[-1][statAbbrevs[1]] = int(getContents(homeLineup, startTag, endTag, start=startIndex))
         startIndex = homeLineup.find(endTag, homeLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
+        # parse player info
         startTag = "<td>"    
         endTag = "</td>"
         homeStarters[-1][statAbbrevs[2]] = parsePlayer(getContents(homeLineup, startTag, endTag, start=startIndex))
         startIndex = homeLineup.find(endTag, homeLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
+        # this player did not sub in
+        homeStarters[-1]["Sub"] = ()
+        
+        # parse individual scoring stats
         for statLoop in range(3, len(statAbbrevs)):
             startTag = "<td>"        
             endTag = "</td>"
@@ -165,11 +178,13 @@ for page_id in [000004, 200007, 300001]:
         awaySubs.append(dict())
         awaySubs[-1]["Started"] = False
         
+        # parse position        
         startTag = "<p>"    
         endTag = "</p>"
         awaySubs[-1][statAbbrevs[0]] = getContents(awaySubLineup, startTag, endTag, start=startIndex)
         startIndex = awaySubLineup.find(endTag, awaySubLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
+        # parse number
         startTag = "<td>"
         endTag = "</td>"
         awaySubs[-1][statAbbrevs[1]] = int(getContents(awaySubLineup, startTag, endTag, start=startIndex))
@@ -187,6 +202,7 @@ for page_id in [000004, 200007, 300001]:
         awaySubs[-1]["Sub"] = parseSub(getContents(awaySubLineup, startTag, endTag, start=startIndex, brkTag=breakTag))
         startIndex = awaySubLineup.find(breakTag, startIndex) + len(breakTag)
         
+        # parse individual scoring stats
         for statLoop in range(3, len(statAbbrevs)):
             startTag = "<td>"        
             endTag = "</td>"
@@ -200,16 +216,19 @@ for page_id in [000004, 200007, 300001]:
         homeSubs.append(dict())
         homeSubs[-1]["Started"] = False
         
+        # parse position        
         startTag = "<p>"    
         endTag = "</p>"
         homeSubs[-1][statAbbrevs[0]] = getContents(homeSubLineup, startTag, endTag, start=startIndex)
         startIndex = homeSubLineup.find(endTag, homeSubLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
+        # parse number
         startTag = "<td>"
         endTag = "</td>"
         homeSubs[-1][statAbbrevs[1]] = int(getContents(homeSubLineup, startTag, endTag, start=startIndex))
         startIndex = homeSubLineup.find(endTag, homeSubLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
+        # parse player information
         startTag = "<td>"    
         endTag = "</td>"
         homeSubs[-1][statAbbrevs[2]] = parsePlayer(getContents(homeSubLineup, startTag, endTag, start=startIndex))
@@ -221,6 +240,7 @@ for page_id in [000004, 200007, 300001]:
         homeSubs[-1]["Sub"] = parseSub(getContents(homeSubLineup, startTag, endTag, start=startIndex, brkTag=breakTag))
         startIndex = homeSubLineup.find(breakTag, startIndex) + len(breakTag)
         
+        # parse individual scoring stats        
         for statLoop in range(3, len(statAbbrevs)):
             startTag = "<td>"        
             endTag = "</td>"

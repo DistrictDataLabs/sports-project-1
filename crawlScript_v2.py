@@ -135,6 +135,63 @@ while homeLineup.find('<p>', startIndex) > -1:
         startIndex = homeLineup.find(endTag, homeLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
     print homeStarters[-1]
+
+# get away team subs!
+awaySubs = []
+startIndex=0
+while awayLineup.find('<p>', startIndex) > -1:
+    awaySubs.append(dict())
     
+    startTag = "<p>"    
+    endTag = "</p>"
+    awaySubs[-1][statAbbrevs[0]] = getContents(awayLineup, startTag, endTag, start=startIndex)
+    startIndex = awayLineup.find(endTag, awayLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
+    
+    startTag = "<td>"
+    endTag = "</td>"
+    awaySubs[-1][statAbbrevs[1]] = int(getContents(awayLineup, startTag, endTag, start=startIndex))
+    startIndex = awayLineup.find(endTag, awayLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
+    
+    startTag = "<td>"    
+    endTag = "</td>"
+    awaySubs[-1][statAbbrevs[2]] = parsePlayer(getContents(awayLineup, startTag, endTag, start=startIndex))
+    startIndex = awayLineup.find(endTag, awayLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
+    
+    for statLoop in range(3, len(statAbbrevs)):
+        startTag = "<td>"        
+        endTag = "</td>"
+        awaySubs[-1][statAbbrevs[statLoop]] = parseStat(getContents(awayLineup, startTag, endTag, start=startIndex))
+        startIndex = awayLineup.find(endTag, awayLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
+        
+    print awaySubs[-1]
+    
+# get home team subs!
+homeSubs = []
+startIndex=0
+while homeLineup.find('<p>', startIndex) > -1:
+    homeSubs.append(dict())
+    
+    startTag = "<p>"    
+    endTag = "</p>"
+    homeSubs[-1][statAbbrevs[0]] = getContents(homeLineup, startTag, endTag, start=startIndex)
+    startIndex = homeLineup.find(endTag, homeLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
+    
+    startTag = "<td>"
+    endTag = "</td>"
+    homeSubs[-1][statAbbrevs[1]] = int(getContents(homeLineup, startTag, endTag, start=startIndex))
+    startIndex = homeLineup.find(endTag, homeLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
+    
+    startTag = "<td>"    
+    endTag = "</td>"
+    homeSubs[-1][statAbbrevs[2]] = parsePlayer(getContents(homeLineup, startTag, endTag, start=startIndex))
+    startIndex = homeLineup.find(endTag, homeLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
+    
+    for statLoop in range(3, len(statAbbrevs)):
+        startTag = "<td>"        
+        endTag = "</td>"
+        homeSubs[-1][statAbbrevs[statLoop]] = parseStat(getContents(homeLineup, startTag, endTag, start=startIndex))
+        startIndex = homeLineup.find(endTag, homeLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
+        
+    print homeSubs[-1]
 
         

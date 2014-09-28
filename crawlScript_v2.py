@@ -28,7 +28,7 @@ def parsePlayer(linkText): # link text of the form <a href = ...>Player Name</a>
 # parses stats from the table, handles the "-"s, which are registered as zeros
 def parseStat(statText):
     statText = statText.strip()
-    if statText is "-":
+    if not statText or statText == "-":
         return 0
     else:
         return int(statText)
@@ -36,24 +36,79 @@ def parseStat(statText):
 # parses player numbers from the table, handles the "-"s, which are registered as -1
 def parseNum(numText):
     numText = numText.strip()
-    if numText is "-":
+    if not numText or numText is "-":
         return -1
     else:
         return int(numText)
-
+        
 # parse substitution information, returns () if no sub,  
 def parseSub(subText):
     if not subText:
         return ()
-    minutes = int(re.findall(r"[0-9]+", getContents(subText, "<strong>Substitution</strong> - ", "\'"))[0])
+    minutes = getContents(subText, "<strong>Substitution</strong> - ", "\'")
+    minutes = re.findall(r"[0-9]+(?: \+ [0-9]+)*", minutes)[0]
     subfor = getContents(subText, "Off: ", "');")
     return (minutes, subfor)
+
+# parse yellow card timing, returns "" if none 
+def parseYellowCard(cardText):
+    if not cardText:
+        return ""
+    minutes = getContents(cardText, "<strong>Yellow Card</strong> - ", "\'")
+    minutes = re.findall(r"[0-9]+(?: \+ [0-9]+)*", minutes)[0]
+    return minutes
+    
+# parse red card timing, returns "" if none  
+def parseRedCard(cardText):
+    if not cardText:
+        return ""
+    minutes = getContents(cardText, "<strong>Red Card</strong> - ", "\'")
+    minutes = re.findall(r"[0-9]+(?: \+ [0-9]+)*", minutes)[0]
+    return minutes
+    
+# parse own goal information, returns "" if none  
+def parseOwnGoal(goalText):
+    if not goalText:
+        return ""
+    minutes = getContents(goalText, "<strong>Own Goal</strong> - ", "\'")
+    minutes = re.findall(r"[0-9]+(?: \+ [0-9]+)*", minutes)[0]
+    return minutes
+    
+# parse own goal information, returns "" if none  
+def parseGoal(goalText):
+    if not goalText:
+        return ""
+    minutes = getContents(goalText, "<strong>Goal</strong> - ", "\'")
+    minutes = re.findall(r"[0-9]+(?: \+ [0-9]+)*", minutes)[0]
+    return minutes
+    
+def parseIcons(postLinkText):
+    startIndex = 0
+    iconInfo = [(), (), (), (), ()]
+    while postLinkText.find("<div class=", startIndex) > -1:
+        iconType = getContents(postLinkText, "<strong>", "</strong>", start=startIndex)
+        if iconType == "Substitution":
+            iconInfo[0] = parseSub(postLinkText[startIndex:])
+        elif iconType == "Goal":
+            iconInfo[1] += (parseGoal(postLinkText[startIndex:]),)
+        elif iconType == "Own Goal":
+            iconInfo[2] += (parseOwnGoal(postLinkText[startIndex:]),)
+        elif iconType == "Red Card":
+            iconInfo[3] += (parseRedCard(postLinkText[startIndex:]),)
+        elif iconType == "Yellow Card":
+            iconInfo[4] += (parseYellowCard(postLinkText[startIndex:]),)
+        else:
+            print "Warning: cannot parse icon " + iconType
+        endTag = '</div>'
+        startIndex = postLinkText.find(endTag, startIndex) + len(endTag)
+        
+    return iconInfo
 
 # os.path.join
 dropboxPath = "C:\Users\Matt\Documents\Dropbox\Sports Project\CrawlData"
 
 # started from 395707 and counted down
-for page_id in range(394910, 394909, -1):
+for page_id in range(395707, 1000000, -1):
 
     print "********************"
     
@@ -81,7 +136,20 @@ for page_id in range(394910, 394909, -1):
     matchDate = datetime.utcfromtimestamp(int(matchDate) / 1000)
     matchDateStr = matchDate.strftime("%Y-%m-%d, %H:%M")
     print matchDateStr
+    
+    if matchDate > datetime.now(): # this isn't exact / time-zone proof
+        print "Match hasn't happened yet!"
+        continue
+    
+    # get the match score, a little tricky
+    matchScore = getContents(getContents(page_source, '<div class="score-time">', '</div>'), '<p class="score">', '</p>').strip()
+    matchScore = [int(score) for score in matchScore.split('-')]
+    if page_source.find('class="team away"') > page_source.find('class="team home"'):
+        matchScore = (matchScore[1], matchScore[0])
         
+    # get the match time, i.e., full-time, over time, etc.
+    matchDuration = getContents(getContents(page_source, '<div class="score-time">', '</div>'), '<p class="time">', '</p>')
+       
     # get stat column titles, this is the only place that I use the BeautifulSoup object
     statAbbrevs = []
     statTitles = dict()
@@ -95,8 +163,15 @@ for page_id in range(394910, 394909, -1):
                 else:
                     statTitles[statAbbrevs[-1]] = statAbbrevs[-1]
             break
+    
+    # some extra labels that are not in the title    
     statTitles["Sub"] = "Substitution (Min, Name)" # substitution labels
     statTitles["Started"] = "Started" # started bool
+    statTitles["OG"] = "Own Goals"
+    statTitles["GT"] = "Goal Times"
+    statTitles["YCT"] = "Yellow Card Times"
+    statTitles["RCT"] = "Red Card Times"
+    statTitles["OGT"] = "Own Goal Times"
     
     # get the indices to search from
     awayIndex = page_source.find('<h1 id="away-team" class="heading alt">')
@@ -133,10 +208,19 @@ for page_id in range(394910, 394909, -1):
         startTag = "<td>"    
         endTag = "</td>"
         awayStarters[-1][statAbbrevs[2]] = parsePlayer(getContents(awayLineup, startTag, endTag, start=startIndex))
-        startIndex = awayLineup.find(endTag, awayLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
-        # this player did not sub in        
-        awayStarters[-1]["Sub"] = ()
+        # parse icon information next to this player
+        iconsText = getContents(awayLineup, '</a>', '</td>', start=startIndex)
+        iconsTuple = parseIcons(iconsText)
+        awayStarters[-1]["Sub"] = iconsTuple[0]
+        awayStarters[-1]["GT"] = iconsTuple[1]
+        awayStarters[-1]["OGT"] = iconsTuple[2]
+        awayStarters[-1]["OG"] = len(iconsTuple[2])
+        awayStarters[-1]["RCT"] = iconsTuple[3]
+        awayStarters[-1]["YCT"] = iconsTuple[4]
+        
+        # advance the startIndex
+        startIndex = awayLineup.find(endTag, awayLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
         # parse the scoring stats
         for statLoop in range(3, len(statAbbrevs)):
@@ -144,6 +228,8 @@ for page_id in range(394910, 394909, -1):
             endTag = "</td>"
             awayStarters[-1][statAbbrevs[statLoop]] = parseStat(getContents(awayLineup, startTag, endTag, start=startIndex))
             startIndex = awayLineup.find(endTag, awayLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
+        
+        print awayStarters[-1]
         
     # get home team starters!
     homeStarters = []
@@ -168,10 +254,19 @@ for page_id in range(394910, 394909, -1):
         startTag = "<td>"    
         endTag = "</td>"
         homeStarters[-1][statAbbrevs[2]] = parsePlayer(getContents(homeLineup, startTag, endTag, start=startIndex))
-        startIndex = homeLineup.find(endTag, homeLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
+
+        # parse icon information next to this player
+        iconsText = getContents(homeLineup, '</a>', '</td>', start=startIndex)
+        iconsTuple = parseIcons(iconsText)
+        homeStarters[-1]["Sub"] = iconsTuple[0]
+        homeStarters[-1]["GT"] = iconsTuple[1]
+        homeStarters[-1]["OGT"] = iconsTuple[2]
+        homeStarters[-1]["OG"] = len(iconsTuple[2])
+        homeStarters[-1]["RCT"] = iconsTuple[3]
+        homeStarters[-1]["YCT"] = iconsTuple[4]
         
-        # this player did not sub in
-        homeStarters[-1]["Sub"] = ()
+        # advance the startIndex
+        startIndex = homeLineup.find(endTag, homeLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
         # parse individual scoring stats
         for statLoop in range(3, len(statAbbrevs)):
@@ -204,12 +299,18 @@ for page_id in range(394910, 394909, -1):
         endTag = "</td>"
         awaySubs[-1][statAbbrevs[2]] = parsePlayer(getContents(awaySubLineup, startTag, endTag, start=startIndex))
         
-        # parse sub information if it exists    
-        startTag = '<div '
-        endTag = "</div>"
-        breakTag = "</td>"# this can be used to say "there is no content here
-        awaySubs[-1]["Sub"] = parseSub(getContents(awaySubLineup, startTag, endTag, start=startIndex, brkTag=breakTag))
-        startIndex = awaySubLineup.find(breakTag, startIndex) + len(breakTag)
+        # parse icon information next to this player
+        iconsText = getContents(awaySubLineup, '</a>', '</td>', start=startIndex)
+        iconsTuple = parseIcons(iconsText)
+        awaySubs[-1]["Sub"] = iconsTuple[0]
+        awaySubs[-1]["GT"] = iconsTuple[1]
+        awaySubs[-1]["OGT"] = iconsTuple[2]
+        awaySubs[-1]["OG"] = len(iconsTuple[2])
+        awaySubs[-1]["RCT"] = iconsTuple[3]
+        awaySubs[-1]["YCT"] = iconsTuple[4]
+        
+        # advance the startIndex
+        startIndex = awaySubLineup.find(endTag, awaySubLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
         # parse individual scoring stats
         for statLoop in range(3, len(statAbbrevs)):
@@ -242,12 +343,18 @@ for page_id in range(394910, 394909, -1):
         endTag = "</td>"
         homeSubs[-1][statAbbrevs[2]] = parsePlayer(getContents(homeSubLineup, startTag, endTag, start=startIndex))
             
-        # parse sub information if it exists    
-        startTag = '<div '
-        endTag = "</div>"
-        breakTag = "</td>"# this can be used to say "there is no content here
-        homeSubs[-1]["Sub"] = parseSub(getContents(homeSubLineup, startTag, endTag, start=startIndex, brkTag=breakTag))
-        startIndex = homeSubLineup.find(breakTag, startIndex) + len(breakTag)
+        # parse icon information next to this player
+        iconsText = getContents(homeSubLineup, '</a>', '</td>', start=startIndex)
+        iconsTuple = parseIcons(iconsText)
+        homeSubs[-1]["Sub"] = iconsTuple[0]
+        homeSubs[-1]["GT"] = iconsTuple[1]
+        homeSubs[-1]["OGT"] = iconsTuple[2]
+        homeSubs[-1]["OG"] = len(iconsTuple[2])
+        homeSubs[-1]["RCT"] = iconsTuple[3]
+        homeSubs[-1]["YCT"] = iconsTuple[4]
+        
+        # advance the startIndex
+        startIndex = homeSubLineup.find(endTag, homeSubLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
         
         # parse individual scoring stats        
         for statLoop in range(3, len(statAbbrevs)):
@@ -267,8 +374,10 @@ for page_id in range(394910, 394909, -1):
     jsonData["Home Players"].extend(homeSubs)
     jsonData["Away Players"] = awayStarters
     jsonData["Away Players"].extend(awaySubs)
-    jsonData["Away Score"] = sum([player["G"] for player in jsonData["Away Players"]])
-    jsonData["Home Score"] = sum([player["G"] for player in jsonData["Home Players"]])
+    jsonData["Match Score (A-H)"] = matchScore
+    jsonData["Match Duration"] = matchDuration
+    jsonData["Home Offensive Goals"] = sum([player["G"] for player in jsonData["Home Players"]])
+    jsonData["Away Offensive Goals"] = sum([player["G"] for player in jsonData["Away Players"]])
     
     # write everything to a json
     filename = matchDate.strftime("%Y-%m-%d_%H%M") + "_" + (awayTeam + " at " + homeTeam).replace(" ", "-") + ".json"
@@ -284,7 +393,7 @@ for page_id in range(394910, 394909, -1):
         json.dump(jsonData, outfile)
         print "Wrote JSON " + filename + " successfully!"
         
-    csvEntry = page_id_string + "," + leagueName + "," + awayTeam + "," + homeTeam + "," + matchDate.strftime("'%Y-%m-%d %H:%M'") + ",'" + str(jsonData["Away Score"]) + "-" + str(jsonData["Home Score"]) + "'," + os.path.join(leagueName, str(matchDate.year), filename) + "\n"
+    csvEntry = page_id_string + "," + leagueName + "," + awayTeam + " @ " + homeTeam + "," + matchDate.strftime("'%Y-%m-%d %H:%M'") + ",'" + str(matchScore[0]) + "-" + str(matchScore[1]) + "'," + os.path.join(leagueName, str(matchDate.year), filename) + "\n"
     with open(os.path.join(dropboxPath, "MatchesExtracted.csv"), 'a') as csvwriter:
         csvwriter.write(csvEntry)
         print "Wrote entry into MatchesExtracted.csv successfully!"    

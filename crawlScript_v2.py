@@ -127,7 +127,7 @@ def parseIcons(postLinkText):
 dropboxPath = "C:\Users\Matt\Documents\Dropbox\Sports Project\CrawlData"
 
 # started from 395707 and counted down
-for page_id in range(395707, 1000000, -1):
+for page_id in range(395707, 100000, -1):
 
     print "********************"
     

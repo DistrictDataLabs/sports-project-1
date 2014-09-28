@@ -82,9 +82,17 @@ def parseGoal(goalText):
     minutes = re.findall(r"[0-9]+(?: \+ [0-9]+)*", minutes)[0]
     return minutes
     
+# parse own goal information, returns "" if none  
+def parseGoalHeader(goalText):
+    if not goalText:
+        return ""
+    minutes = getContents(goalText, "<strong>Goal - Header</strong> - ", "\'")
+    minutes = re.findall(r"[0-9]+(?: \+ [0-9]+)*", minutes)[0]
+    return minutes
+    
 def parseIcons(postLinkText):
     startIndex = 0
-    iconInfo = [(), (), (), (), ()]
+    iconInfo = [(), (), (), (), (), ()]
     while postLinkText.find("<div class=", startIndex) > -1:
         iconType = getContents(postLinkText, "<strong>", "</strong>", start=startIndex)
         if iconType == "Substitution":
@@ -97,6 +105,8 @@ def parseIcons(postLinkText):
             iconInfo[3] += (parseRedCard(postLinkText[startIndex:]),)
         elif iconType == "Yellow Card":
             iconInfo[4] += (parseYellowCard(postLinkText[startIndex:]),)
+        elif iconType == "Goal - Header":
+            iconInfo[5] += (parseGoalHeader(postLinkText[startIndex:]),)
         else:
             print "Warning: cannot parse icon " + iconType
         endTag = '</div>'
@@ -108,7 +118,7 @@ def parseIcons(postLinkText):
 dropboxPath = "C:\Users\Matt\Documents\Dropbox\Sports Project\CrawlData"
 
 # started from 395707 and counted down
-for page_id in range(395707, 1000000, -1):
+for page_id in range(395707, 395000, -1):
 
     print "********************"
     
@@ -169,6 +179,8 @@ for page_id in range(395707, 1000000, -1):
     statTitles["Started"] = "Started" # started bool
     statTitles["OG"] = "Own Goals"
     statTitles["GT"] = "Goal Times"
+    statTitles["GH"] = "Header Goals"
+    statTitles["GHT"] = "Header Goal Times"
     statTitles["YCT"] = "Yellow Card Times"
     statTitles["RCT"] = "Red Card Times"
     statTitles["OGT"] = "Own Goal Times"
@@ -218,6 +230,8 @@ for page_id in range(395707, 1000000, -1):
         awayStarters[-1]["OG"] = len(iconsTuple[2])
         awayStarters[-1]["RCT"] = iconsTuple[3]
         awayStarters[-1]["YCT"] = iconsTuple[4]
+        awayStarters[-1]["HG"] = len(iconsTuple[5])
+        awayStarters[-1]["HGT"] = iconsTuple[5]
         
         # advance the startIndex
         startIndex = awayLineup.find(endTag, awayLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
@@ -228,8 +242,6 @@ for page_id in range(395707, 1000000, -1):
             endTag = "</td>"
             awayStarters[-1][statAbbrevs[statLoop]] = parseStat(getContents(awayLineup, startTag, endTag, start=startIndex))
             startIndex = awayLineup.find(endTag, awayLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
-        
-        print awayStarters[-1]
         
     # get home team starters!
     homeStarters = []
@@ -264,6 +276,8 @@ for page_id in range(395707, 1000000, -1):
         homeStarters[-1]["OG"] = len(iconsTuple[2])
         homeStarters[-1]["RCT"] = iconsTuple[3]
         homeStarters[-1]["YCT"] = iconsTuple[4]
+        homeStarters[-1]["HG"] = len(iconsTuple[5])
+        homeStarters[-1]["HGT"] = iconsTuple[5]
         
         # advance the startIndex
         startIndex = homeLineup.find(endTag, homeLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
@@ -308,6 +322,8 @@ for page_id in range(395707, 1000000, -1):
         awaySubs[-1]["OG"] = len(iconsTuple[2])
         awaySubs[-1]["RCT"] = iconsTuple[3]
         awaySubs[-1]["YCT"] = iconsTuple[4]
+        awaySubs[-1]["HG"] = len(iconsTuple[5])
+        awaySubs[-1]["HGT"] = iconsTuple[5]
         
         # advance the startIndex
         startIndex = awaySubLineup.find(endTag, awaySubLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
@@ -352,6 +368,8 @@ for page_id in range(395707, 1000000, -1):
         homeSubs[-1]["OG"] = len(iconsTuple[2])
         homeSubs[-1]["RCT"] = iconsTuple[3]
         homeSubs[-1]["YCT"] = iconsTuple[4]
+        homeSubs[-1]["HG"] = len(iconsTuple[5])
+        homeSubs[-1]["HGT"] = iconsTuple[5]
         
         # advance the startIndex
         startIndex = homeSubLineup.find(endTag, homeSubLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)

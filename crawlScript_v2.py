@@ -161,7 +161,7 @@ for page_id in range(395707, 100000, -1):
         continue
     
     # get the match score, a little tricky
-    matchScore = getContents(getContents(page_source, '<div class="score-time">', '</div>'), '<p class="score">', '</p>').strip()
+    matchScore = re.findall(r"[0-9]+ - [0-9]+", getContents(getContents(page_source, '<div class="score-time">', '</div>'), '<p class="score">', '</p>'))[0]
     matchScore = [int(score) for score in matchScore.split('-')]
     if page_source.find('class="team away"') > page_source.find('class="team home"'):
         matchScore = (matchScore[1], matchScore[0])

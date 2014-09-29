@@ -138,8 +138,8 @@ def parseIcons(postLinkText):
 dropboxPath = "C:\Users\Matt\Documents\Dropbox\Sports Project\CrawlData"
 
 # started from 403000 and counted down
-# score glitch at 402659
-for page_id in range(403000, 100000, -1):
+# Internal Server Error at 400910 and 400903
+for page_id in range(400903, 100000, -1):
 
     print "********************"
     
@@ -147,7 +147,14 @@ for page_id in range(403000, 100000, -1):
     print page_id_string
     
     urlString = "http://www.espnfc.co.uk/gamecast/statistics/id/" + page_id_string + "/statistics.html"
-    response = urllib2.urlopen(urlString)
+    try:
+        response = urllib2.urlopen(urlString)
+    except urllib2.HTTPError:
+        print "There was an error with the request!"
+        csvEntry = page_id_string + ",Bad Request,,,,,\n"
+        with open(os.path.join(dropboxPath, "MatchesExtracted.csv"), 'a') as csvwriter:
+            csvwriter.write(csvEntry)
+        continue
     page_source = response.read()
     soup = BeautifulSoup(page_source)
     

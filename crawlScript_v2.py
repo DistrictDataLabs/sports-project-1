@@ -11,7 +11,7 @@ def getContents(htmlText, startTag, endTag, start=0, end=-1, brkTag=[]):
         end = len(htmlText)
     startIndex = htmlText.find(startTag, start, end) + len(startTag)
     endIndex = htmlText.find(endTag, startIndex)
-    if startIndex == -1 or endIndex == -1:
+    if startIndex == (len(startTag) - 1) or endIndex == -1:
         return ""
     else:
         if not brkTag or (brkTag and htmlText.find(brkTag, startIndex, endIndex) == -1):
@@ -97,9 +97,20 @@ def parsePenaltyScored(goalText):
     minutes = re.findall(r"[0-9]+(?: \+ [0-9]+)*", minutes)[0]
     return minutes
     
+def parseGenericIcon(iconText):
+    if not iconText:
+        return ""
+    iconType = getContents(iconText, "<strong>", "</strong>")
+    minutes = getContents(iconText, "<strong>" + iconType + "</strong> - ", "\'")
+    minutes = re.findall(r"[0-9]+(?: \+ [0-9]+)*", minutes)
+    if minutes and iconType:
+        return [(iconType, minutes[0])]
+    else:
+        return []
+    
 def parseIcons(postLinkText):
     startIndex = 0
-    iconInfo = [(), (), (), (), (), (), ()]
+    iconInfo = [(), (), (), (), (), (), (), []]
     while postLinkText.find("<div class=", startIndex) > -1:
         iconType = getContents(postLinkText, "<strong>", "</strong>", start=startIndex)
         if iconType == "Substitution":
@@ -115,9 +126,9 @@ def parseIcons(postLinkText):
         elif iconType == "Goal - Header":
             iconInfo[5] += (parseGoalHeader(postLinkText[startIndex:]),)
         elif iconType == "Penalty - Scored":
-            iconInfo[5] += (parsePenaltyScored(postLinkText[startIndex:]),)
+            iconInfo[6] += (parsePenaltyScored(postLinkText[startIndex:]),)
         else:
-            print "Warning: cannot parse icon " + iconType
+            iconInfo[7] += parseGenericIcon(postLinkText[startIndex:])
         endTag = '</div>'
         startIndex = postLinkText.find(endTag, startIndex) + len(endTag)
         
@@ -126,10 +137,9 @@ def parseIcons(postLinkText):
 # os.path.join
 dropboxPath = "C:\Users\Matt\Documents\Dropbox\Sports Project\CrawlData"
 
-# started from 395707 and counted down
-# discovered matchScore glitch at 393755
-# possible duplicate of 393755 or 393754
-for page_id in range(393755, 100000, -1):
+# started from 403000 and counted down
+# score glitch at 402659
+for page_id in range(403000, 100000, -1):
 
     print "********************"
     
@@ -146,7 +156,7 @@ for page_id in range(393755, 100000, -1):
     homeTeam = getContents(page_source, '<h1 id="home-team" class="heading alt">', '</h1>')
     leagueName = getContents(page_source, '<p class="floatleft">', "<span>").strip() # no clue why this is the only match
     
-    if not soup.title.string.find(awayTeam + " v " + homeTeam) > -1 and not soup.title.string.find(homeTeam + " v " + awayTeam) > -1:
+    if not homeTeam or not awayTeam:
         print "Not a match!"
         continue
     else:
@@ -163,13 +173,19 @@ for page_id in range(393755, 100000, -1):
         continue
     
     # get the match score, a little tricky
-    matchScore = re.findall(r"[0-9]+ - [0-9]+", getContents(getContents(page_source, '<div class="score-time">', '</div>'), '<p class="score">', '</p>'))[0]
-    matchScore = [int(score) for score in matchScore.split('-')]
+    matchScore = re.findall(r"[0-9]+ - [0-9]+", getContents(getContents(page_source, '<div class="score-time">', '</div>'), '<p class="score">', '</p>'))
+    if not matchScore:
+        print "Match didn't have a score!"
+        continue        
+    matchScore = [int(score) for score in matchScore[0].split('-')]
     if page_source.find('class="team away"') > page_source.find('class="team home"'):
         matchScore = (matchScore[1], matchScore[0])
         
     # get the match time, i.e., full-time, over time, etc.
     matchDuration = getContents(getContents(page_source, '<div class="score-time">', '</div>'), '<p class="time">', '</p>')
+    
+    # print the match score and duration
+    print str(matchScore[0]) + "-" + str(matchScore[1]) + ", " + matchDuration
        
     # get stat column titles, this is the only place that I use the BeautifulSoup object
     statAbbrevs = []
@@ -197,6 +213,7 @@ for page_id in range(393755, 100000, -1):
     statTitles["OGT"] = "Own Goal Times"
     statTitles["PG"] = "Penalty Goals"
     statTitles["PGT"] = "Penalty Goal Times"
+    statTitles["Misc"] = "Other Events"
     
     # get the indices to search from
     awayIndex = page_source.find('<h1 id="away-team" class="heading alt">')
@@ -247,6 +264,7 @@ for page_id in range(393755, 100000, -1):
         awayStarters[-1]["HGT"] = iconsTuple[5]
         awayStarters[-1]["PG"] = len(iconsTuple[6])
         awayStarters[-1]["PGT"] = iconsTuple[6]
+        awayStarters[-1]["Misc"] = iconsTuple[7]
         
         # advance the startIndex
         startIndex = awayLineup.find(endTag, awayLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
@@ -295,6 +313,7 @@ for page_id in range(393755, 100000, -1):
         homeStarters[-1]["HGT"] = iconsTuple[5]
         homeStarters[-1]["PG"] = len(iconsTuple[6])
         homeStarters[-1]["PGT"] = iconsTuple[6]
+        homeStarters[-1]["Misc"] = iconsTuple[7]
         
         # advance the startIndex
         startIndex = homeLineup.find(endTag, homeLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
@@ -343,6 +362,7 @@ for page_id in range(393755, 100000, -1):
         awaySubs[-1]["HGT"] = iconsTuple[5]
         awaySubs[-1]["PG"] = len(iconsTuple[6])
         awaySubs[-1]["PGT"] = iconsTuple[6]
+        awaySubs[-1]["Misc"] = iconsTuple[7]
         
         # advance the startIndex
         startIndex = awaySubLineup.find(endTag, awaySubLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
@@ -391,6 +411,7 @@ for page_id in range(393755, 100000, -1):
         homeSubs[-1]["HGT"] = iconsTuple[5]
         homeSubs[-1]["PG"] = len(iconsTuple[6])
         homeSubs[-1]["PGT"] = iconsTuple[6]
+        homeSubs[-1]["Misc"] = iconsTuple[7]
         
         # advance the startIndex
         startIndex = homeSubLineup.find(endTag, homeSubLineup.find(startTag, startIndex) + len(startTag)) + len(endTag)
@@ -419,7 +440,7 @@ for page_id in range(393755, 100000, -1):
     jsonData["Away Offensive Goals"] = sum([player["G"] for player in jsonData["Away Players"]])
     
     # write everything to a json
-    filename = matchDate.strftime("%Y-%m-%d_%H%M") + "_" + (awayTeam + " at " + homeTeam).replace(" ", "-") + ".json"
+    filename = matchDate.strftime("%Y-%m-%d_%H%M") + "_" + (awayTeam + " at " + homeTeam).replace(" ", "-").replace("/", "_") + ".json"
     
     # make sure the file structure exists
     if not os.path.exists(os.path.join(dropboxPath, leagueName, str(matchDate.year))):
@@ -432,7 +453,7 @@ for page_id in range(393755, 100000, -1):
         json.dump(jsonData, outfile)
         print "Wrote JSON " + filename
         
-    csvEntry = page_id_string + "," + leagueName + "," + awayTeam + " @ " + homeTeam + "," + matchDate.strftime("'%Y-%m-%d %H:%M'") + ",'" + str(matchScore[0]) + "-" + str(matchScore[1]) + "'," + os.path.join(leagueName, str(matchDate.year), filename) + "\n"
+    csvEntry = page_id_string + "," + leagueName + "," + awayTeam + " @ " + homeTeam + "," + matchDate.strftime("'%Y-%m-%d %H:%M'") + ",'" + str(matchScore[0]) + "-" + str(matchScore[1]) + "'," + os.path.join(leagueName, str(matchDate.year), filename) + "," + str(len(jsonData["Home Players"]) + len(jsonData["Away Players"])) + " Players' Info\n"
     with open(os.path.join(dropboxPath, "MatchesExtracted.csv"), 'a') as csvwriter:
         csvwriter.write(csvEntry)
         print "Wrote entry into MatchesExtracted.csv"    

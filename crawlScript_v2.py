@@ -139,7 +139,11 @@ dropboxPath = "C:\Users\Matt\Documents\Dropbox\Sports Project\CrawlData"
 
 # started from 403000 and counted down
 # Internal Server Error at 400910 and 400903
-for page_id in range(400903, 100000, -1):
+# leagueName bug at 392765
+# league transcription problem at 377992, 377441
+# connection forcibly closed at 372044
+# stopped at 366624 to go to India!
+for page_id in range(366624, 100000, -1):
 
     print "********************"
     
@@ -445,6 +449,9 @@ for page_id in range(400903, 100000, -1):
     jsonData["Match Duration"] = matchDuration
     jsonData["Home Offensive Goals"] = sum([player["G"] for player in jsonData["Home Players"]])
     jsonData["Away Offensive Goals"] = sum([player["G"] for player in jsonData["Away Players"]])
+    
+    # make the league name file write-able
+    leagueName = leagueName.replace("/", "_")
     
     # write everything to a json
     filename = matchDate.strftime("%Y-%m-%d_%H%M") + "_" + (awayTeam + " at " + homeTeam).replace(" ", "-").replace("/", "_") + ".json"
